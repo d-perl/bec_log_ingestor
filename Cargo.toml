@@ -1,0 +1,10 @@
+[package]
+name = "bec_log_ingestor"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+elasticsearch = "9.0.0-alpha.1"
+redis = "0.32.4"
+rmp = "0.8.14"
+tokio = "1.47.0"
