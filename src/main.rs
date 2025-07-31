@@ -2,7 +2,7 @@
 extern crate custom_derive;
 #[macro_use]
 extern crate enum_derive;
-
+use msgpack_simple::{Extension, MapElement, MsgPack};
 use std::{collections::HashMap, error::Error, ops::Index};
 
 use redis::Commands;
@@ -60,12 +60,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         })
         .collect::<Result<Vec<Vec<u8>>, Box<dyn Error>>>()?;
 
-    let un_mspacked: Vec<rmpv::Value> = un_valued
-        .iter()
-        .map(|e| rmpv::Value::from(e.to_owned()))
-        .collect();
+    let un_mspacked: Result<Vec<MsgPack>, msgpack_simple::ParseError> =
+        un_valued.iter().map(|e| MsgPack::parse(e)).collect();
 
-    dbg!(un_valued);
+    dbg!(un_mspacked);
 
     Ok(())
 }
