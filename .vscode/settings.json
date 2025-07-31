@@ -1,0 +1,4 @@
+{
+    "debug.allowBreakpointsEverywhere": true,
+    "editor.inlayHints.enabled": "offUnlessPressed"
+}
