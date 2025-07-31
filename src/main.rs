@@ -49,7 +49,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let data: Vec<&redis::Value> = key
         .ids
         .iter()
-        .map(|e| e.map.get("data").ok_or_else(|| str_error(NO_DATA)).into())
+        .map(|e| e.map.get("data").ok_or_else(|| str_error(NO_DATA)))
         .collect::<Result<Vec<&redis::Value>, Box<dyn Error>>>()?;
 
     let un_valued: Vec<Vec<u8>> = data
