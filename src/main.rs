@@ -60,8 +60,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         })
         .collect::<Result<Vec<Vec<u8>>, Box<dyn Error>>>()?;
 
-    let un_mspacked: Result<Vec<MsgPack>, msgpack_simple::ParseError> =
-        un_valued.iter().map(|e| MsgPack::parse(e)).collect();
+    let un_mspacked = un_valued
+        .iter()
+        .map(|e| MsgPack::parse(e))
+        .collect::<Result<Vec<MsgPack>, msgpack_simple::ParseError>>()?;
 
     dbg!(un_mspacked);
 
