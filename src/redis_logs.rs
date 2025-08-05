@@ -194,7 +194,7 @@ fn extract_records(messages: Vec<LogMessagePack>) -> Vec<LogRecord> {
         .collect()
 }
 
-pub async fn producer_loop(mut tx: mpsc::UnboundedSender<LogRecord>) {
+pub async fn producer_loop(tx: mpsc::UnboundedSender<LogRecord>) {
     let mut redis_conn = redis_conn().expect("Could not connect to Redis!");
     let mut stream_read_id: String = ">".into();
 

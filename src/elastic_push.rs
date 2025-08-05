@@ -1,7 +1,5 @@
 use elasticsearch::{Elasticsearch, http::request::JsonBody};
-use rmp_serde;
-use serde_json::to_string;
-use tokio::sync::mpsc;
+use tokio::{sync::mpsc, time::sleep};
 
 use std::{error::Error, iter::once};
 
@@ -35,48 +33,26 @@ fn make_docs_values(
         .collect())
 }
 
-// #[tokio::main]
-// async fn main() -> Result<(), Box<dyn Error>> {
-//     let elastic_client =
-//         elastic_client("ZUl6dGVaZ0JEbkl1Njd5RGl2MVc6UUluVTVWZ0FqNDZ2VlQzYkRwRHJzQQ==")?;
-
-//     let mut redis_conn = redis_conn()?;
-//     // get logs data from redis and convert to record structs
-//     let data = read_logs(&mut redis_conn)?;
-//     let unpacked = process_data(data)?;
-//     let records = extract_records(unpacked);
-
-//     dbg!(&records);
-
-//     let body = make_docs_values(&records)?;
-//     // Send bulk request
-//     let response = elastic_client
-//         .bulk(BulkParts::Index("test-index"))
-//         .body(body)
-//         .send()
-//         .await?;
-
-//     // Optional: check response
-//     let response_body = response.json::<serde_json::Value>().await?;
-//     println!("{:#}", response_body);
-
-//     Ok(())
-// }
-
-pub async fn consumer_loop(mut rx: mpsc::UnboundedReceiver<LogRecord>) {
+pub async fn consumer_loop(rx: &mut mpsc::UnboundedReceiver<LogRecord>) {
     let elastic_client =
         elastic_client("ZUl6dGVaZ0JEbkl1Njd5RGl2MVc6UUluVTVWZ0FqNDZ2VlQzYkRwRHJzQQ==")
             .expect("Failed to connect to Elastic!");
 
-    while let Some(value) = rx.recv().await {
-        // let body = make_docs_values(&records)?;
-        // // Send bulk request
-        // let response = elastic_client
-        //     .bulk(BulkParts::Index("test-index"))
-        //     .body(body)
-        //     .send()
-        //     .await?;
-        println!("{:?}", value);
+    let mut buffer: Vec<LogRecord> = Vec::with_capacity(100);
+
+    loop {
+        let open = rx.recv_many(&mut buffer, 100).await;
+        if open == 0 {
+            break;
+        }
+        let body = make_docs_values(&buffer).unwrap_or(vec![]);
+        let response = elastic_client
+            .bulk(elasticsearch::BulkParts::Index("test-index"))
+            .body(body)
+            .send()
+            .await;
+        println!("sent {} logs to elastic, response: {:?}", open, response);
+        buffer = Vec::with_capacity(100);
     }
     println!("Producer dropped, consumer exiting");
 }
