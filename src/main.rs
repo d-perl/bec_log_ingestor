@@ -1,31 +1,12 @@
-#[macro_use]
-extern crate custom_derive;
-#[macro_use]
-extern crate enum_derive;
-use msgpack_simple::{Extension, MapElement, MsgPack};
-use std::{collections::HashMap, error::Error, ops::Index};
+use std::error::Error;
 
 use redis::Commands;
-use rmp_serde::{Deserializer, Serializer};
-use serde::{Deserialize, Serialize};
+use rmp_serde;
+mod log_msg;
 
 const LOGGING_ENDPOINT: [&str; 1] = ["info/log"];
 const KEY_MISMATCH: &str = "We got a response for request with one key, there must be one key!";
 const NO_DATA: &str = "Uh oh, log message contained no data";
-
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
-enum LogMsg {
-    Str(String),
-    Map(HashMap<String, String>),
-}
-
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
-struct LogMessage {
-    msg_type: String,
-    log_type: String,
-    log_msg: LogMsg,
-    metadata: Option<HashMap<String, String>>,
-}
 
 fn str_error(err: &str) -> Box<dyn Error> {
     Box::<dyn Error>::from(err)
@@ -60,10 +41,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         })
         .collect::<Result<Vec<Vec<u8>>, Box<dyn Error>>>()?;
 
-    let un_mspacked = un_valued
+    let un_mspacked: Vec<log_msg::LogMessagePack> = un_valued
         .iter()
-        .map(|e| MsgPack::parse(e))
-        .collect::<Result<Vec<MsgPack>, msgpack_simple::ParseError>>()?;
+        .map(|e| rmp_serde::from_slice::<log_msg::LogMessagePack>(e))
+        .collect::<Result<Vec<log_msg::LogMessagePack>, rmp_serde::decode::Error>>()?;
 
     dbg!(un_mspacked);
 
