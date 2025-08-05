@@ -4,7 +4,6 @@ use rmp_serde;
 use std::error::Error;
 
 use tokio::sync::mpsc;
-use tokio::time::{Duration, sleep};
 
 use serde::{Deserialize, Serialize};
 
@@ -196,7 +195,7 @@ fn extract_records(messages: Vec<LogMessagePack>) -> Vec<LogRecord> {
 
 pub async fn producer_loop(tx: mpsc::UnboundedSender<LogRecord>) {
     let mut redis_conn = redis_conn().expect("Could not connect to Redis!");
-    let mut stream_read_id: String = ">".into();
+    let stream_read_id: String = ">".into();
 
     let _: Result<(), redis::RedisError> =
         redis_conn.xgroup_create(&LOGGING_ENDPOINT, "log-ingestor", "0");

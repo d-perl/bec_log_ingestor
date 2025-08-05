@@ -1,9 +1,9 @@
 use elasticsearch::{Elasticsearch, http::request::JsonBody};
-use tokio::{sync::mpsc, time::sleep};
+use tokio::sync::mpsc;
 
-use std::{error::Error, iter::once};
+use std::iter::once;
 
-use crate::redis_logs::{LogRecord, producer_loop};
+use crate::redis_logs::LogRecord;
 
 fn elastic_client(api_key: &str) -> Result<Elasticsearch, elasticsearch::Error> {
     let url = elasticsearch::http::Url::parse("http://localhost:9200")?;
