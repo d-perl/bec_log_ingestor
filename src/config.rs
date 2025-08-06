@@ -14,9 +14,15 @@ impl UrlPort {
     }
 }
 
+/// Default number of records to read from Redis or push to Elastic at once
 fn default_chunk_size() -> u16 {
     100
 }
+/// Default timeout for blocking XREAD calls
+fn default_blocktime_millis() -> usize {
+    1000
+}
+/// Default value for both the consumer group and consumer ID
 fn default_consumer() -> String {
     "log-ingestor".into()
 }
@@ -26,6 +32,8 @@ pub struct RedisConfig {
     pub url: UrlPort,
     #[serde(default = "default_chunk_size")]
     pub chunk_size: u16,
+    #[serde(default = "default_blocktime_millis")]
+    pub blocktime_millis: usize,
     #[serde(default = "default_consumer")]
     pub consumer_group: String,
     #[serde(default = "default_consumer")]

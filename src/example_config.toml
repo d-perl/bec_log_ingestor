@@ -1,5 +1,6 @@
 [redis]
 chunk_size = 10
+blocktime_millis = 1000
 consumer_group = "log-ingestor"
 consumer_id = "log-ingestor"
 

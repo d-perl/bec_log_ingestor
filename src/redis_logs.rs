@@ -141,19 +141,20 @@ fn redis_conn(url: &str) -> Result<redis::Connection, redis::RedisError> {
     client.get_connection()
 }
 
-fn stream_read_opts() -> redis::streams::StreamReadOptions {
+fn stream_read_opts(config: &RedisConfig) -> redis::streams::StreamReadOptions {
     redis::streams::StreamReadOptions::default()
-        .count(5)
-        .block(1000)
+        .count(config.chunk_size.into())
+        .block(config.blocktime_millis)
         .group("log-ingestor", "log-ingestor")
 }
 
 fn read_logs(
     redis_conn: &mut redis::Connection,
     last_id: &String,
+    config: &RedisConfig,
 ) -> Result<(Option<String>, Vec<redis::Value>), Box<dyn Error>> {
     let raw_reply: redis::streams::StreamReadReply =
-        redis_conn.xread_options(&LOGGING_ENDPOINT, &[last_id], &stream_read_opts())?;
+        redis_conn.xread_options(&LOGGING_ENDPOINT, &[last_id], &stream_read_opts(config))?;
 
     let log_key = raw_reply
         .keys
@@ -230,7 +231,7 @@ pub async fn producer_loop(tx: mpsc::UnboundedSender<LogRecord>, config: RedisCo
     setup_consumer_group(&mut redis_conn, &config);
 
     'main: loop {
-        if let Ok((Some(id), packed)) = read_logs(&mut redis_conn, &stream_read_id) {
+        if let Ok((Some(id), packed)) = read_logs(&mut redis_conn, &stream_read_id, &config) {
             let unpacked = process_data(packed).unwrap_or(vec![error_log_item()]);
             let records = extract_records(unpacked);
 
