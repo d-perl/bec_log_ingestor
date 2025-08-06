@@ -1,4 +1,4 @@
-use redis::Commands;
+use redis::{Commands, RedisError};
 use rmp_serde;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
@@ -192,14 +192,42 @@ fn extract_records(messages: Vec<LogMessagePack>) -> Vec<LogRecord> {
         .collect()
 }
 
+fn setup_consumer_group(conn: &mut redis::Connection, config: &RedisConfig) {
+    let group: Result<(), redis::RedisError> =
+        conn.xgroup_create(&LOGGING_ENDPOINT, &config.consumer_group, "0");
+    match group {
+        Ok(_) => (),
+        Err(error) => {
+            if let Some(code) = error.code()
+                && code == "BUSYGROUP"
+            {
+                println!(
+                    "Group {} already exists, rejoining with ID {}",
+                    &config.consumer_group, &config.consumer_id
+                )
+            } else {
+                panic!(
+                    "Failed to create Redis consumer group {}!",
+                    &config.consumer_group
+                );
+            }
+        }
+    }
+    let create_id: Result<(), redis::RedisError> = conn.xgroup_createconsumer(
+        &LOGGING_ENDPOINT,
+        &config.consumer_group,
+        &config.consumer_id,
+    );
+    create_id.expect(&format!(
+        "Failed to create Redis consumer ID {} in group {}!",
+        &config.consumer_id, &config.consumer_group
+    ));
+}
+
 pub async fn producer_loop(tx: mpsc::UnboundedSender<LogRecord>, config: RedisConfig) {
     let mut redis_conn = redis_conn(&config.url.full_url()).expect("Could not connect to Redis!");
     let stream_read_id: String = ">".into();
-
-    let _: Result<(), redis::RedisError> =
-        redis_conn.xgroup_create(&LOGGING_ENDPOINT, "log-ingestor", "0");
-    let _: Result<(), redis::RedisError> =
-        redis_conn.xgroup_createconsumer(&LOGGING_ENDPOINT, "log-ingestor", "log-ingestor");
+    setup_consumer_group(&mut redis_conn, &config);
 
     'main: loop {
         if let Ok((Some(id), packed)) = read_logs(&mut redis_conn, &stream_read_id) {

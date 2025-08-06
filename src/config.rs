@@ -17,12 +17,19 @@ impl UrlPort {
 fn default_chunk_size() -> u16 {
     100
 }
+fn default_consumer() -> String {
+    "log-ingestor".into()
+}
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct RedisConfig {
     pub url: UrlPort,
     #[serde(default = "default_chunk_size")]
     pub chunk_size: u16,
+    #[serde(default = "default_consumer")]
+    pub consumer_group: String,
+    #[serde(default = "default_consumer")]
+    pub consumer_id: String,
 }
 
 #[derive(Clone, Debug, Deserialize)]

@@ -50,7 +50,11 @@ pub async fn consumer_loop(rx: &mut mpsc::UnboundedReceiver<LogRecord>, config: 
             .body(body)
             .send()
             .await;
-        println!("sent {} logs to elastic, response: {:?}", open, response);
+        println!(
+            "sent {} logs to elastic, response OK: {:?}",
+            open,
+            response.is_ok()
+        );
         buffer = Vec::with_capacity(config.chunk_size.into());
     }
     println!("Producer dropped, consumer exiting");

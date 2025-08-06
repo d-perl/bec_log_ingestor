@@ -1,14 +1,16 @@
 [redis]
 chunk_size = 10
+consumer_group = "log-ingestor"
+consumer_id = "log-ingestor"
 
 [redis.url]
-url = "http://127.0.0.1"
-port = 12345
+url = "redis://127.0.0.1"
+port = 6379
 
 [elastic]
-api_key = "abcdefgh=="
+api_key = "ZUl6dGVaZ0JEbkl1Njd5RGl2MVc6UUluVTVWZ0FqNDZ2VlQzYkRwRHJzQQ=="
 chunk_size = 100
 
 [elastic.url]
-url = "http://127.0.0.1"
-port = 9876
+url = "http://localhost"
+port = 9200
