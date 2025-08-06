@@ -9,7 +9,7 @@ url = "redis://127.0.0.1"
 port = 6379
 
 [elastic]
-api_key = "ZUl6dGVaZ0JEbkl1Njd5RGl2MVc6UUluVTVWZ0FqNDZ2VlQzYkRwRHJzQQ=="
+api_key = "RjhrMWY1Z0J4ZjV0T0NJQmIzdjU6ZjVURGdmWmVCM3I3ckd2ZmFLUXl6UQ=="
 chunk_size = 100
 
 [elastic.url]
