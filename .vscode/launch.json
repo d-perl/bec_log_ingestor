@@ -1,0 +1,66 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug 'bec_log_ingestor' with config arg",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=bec_log_ingestor",
+                    "--package=bec_log_ingestor"
+                ],
+                "filter": {
+                    "name": "bec_log_ingestor",
+                    "kind": "bin"
+                }
+            },
+            "args": [
+                "--config",
+                "src/example_config.toml"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'bec_log_ingestor'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=bec_log_ingestor",
+                    "--package=bec_log_ingestor"
+                ],
+                "filter": {
+                    "name": "bec_log_ingestor",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'bec_log_ingestor'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=bec_log_ingestor",
+                    "--package=bec_log_ingestor"
+                ],
+                "filter": {
+                    "name": "bec_log_ingestor",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}
