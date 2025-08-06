@@ -1,0 +1,14 @@
+[redis]
+chunk_size = 10
+
+[redis.url]
+url = "http://127.0.0.1"
+port = 12345
+
+[elastic]
+api_key = "abcdefgh=="
+chunk_size = 100
+
+[elastic.url]
+url = "http://127.0.0.1"
+port = 9876

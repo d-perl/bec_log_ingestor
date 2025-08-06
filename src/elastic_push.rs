@@ -3,10 +3,10 @@ use tokio::sync::mpsc;
 
 use std::iter::once;
 
-use crate::redis_logs::LogRecord;
+use crate::{config::ElasticConfig, redis_logs::LogRecord};
 
-fn elastic_client(api_key: &str) -> Result<Elasticsearch, elasticsearch::Error> {
-    let url = elasticsearch::http::Url::parse("http://localhost:9200")?;
+fn elastic_client(url: &str, api_key: &str) -> Result<Elasticsearch, elasticsearch::Error> {
+    let url = elasticsearch::http::Url::parse(url)?;
     let conn_pool = elasticsearch::http::transport::SingleNodeConnectionPool::new(url);
     let credentials = elasticsearch::auth::Credentials::EncodedApiKey(api_key.into());
     let transport = elasticsearch::http::transport::TransportBuilder::new(conn_pool)
@@ -33,15 +33,14 @@ fn make_docs_values(
         .collect())
 }
 
-pub async fn consumer_loop(rx: &mut mpsc::UnboundedReceiver<LogRecord>) {
-    let elastic_client =
-        elastic_client("ZUl6dGVaZ0JEbkl1Njd5RGl2MVc6UUluVTVWZ0FqNDZ2VlQzYkRwRHJzQQ==")
-            .expect("Failed to connect to Elastic!");
+pub async fn consumer_loop(rx: &mut mpsc::UnboundedReceiver<LogRecord>, config: ElasticConfig) {
+    let elastic_client = elastic_client(&config.url.full_url(), &config.api_key)
+        .expect("Failed to connect to Elastic!");
 
-    let mut buffer: Vec<LogRecord> = Vec::with_capacity(100);
+    let mut buffer: Vec<LogRecord> = Vec::with_capacity(config.chunk_size.into());
 
     loop {
-        let open = rx.recv_many(&mut buffer, 100).await;
+        let open = rx.recv_many(&mut buffer, config.chunk_size.into()).await;
         if open == 0 {
             break;
         }
@@ -52,7 +51,9 @@ pub async fn consumer_loop(rx: &mut mpsc::UnboundedReceiver<LogRecord>) {
             .send()
             .await;
         println!("sent {} logs to elastic, response: {:?}", open, response);
-        buffer = Vec::with_capacity(100);
+        buffer = Vec::with_capacity(config.chunk_size.into());
     }
     println!("Producer dropped, consumer exiting");
 }
+
+mod tests {}

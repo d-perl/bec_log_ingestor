@@ -1,11 +1,10 @@
 use redis::Commands;
 use rmp_serde;
-
+use serde::{Deserialize, Serialize};
 use std::error::Error;
-
 use tokio::sync::mpsc;
 
-use serde::{Deserialize, Serialize};
+use crate::config::RedisConfig;
 
 #[derive(Debug, PartialEq, Deserialize, Serialize, Clone)]
 pub struct Elapsed {
@@ -137,8 +136,8 @@ fn str_error(err: &str) -> Box<dyn Error> {
     Box::<dyn Error>::from(err)
 }
 
-fn redis_conn() -> Result<redis::Connection, redis::RedisError> {
-    let client = redis::Client::open("redis://127.0.0.1/")?;
+fn redis_conn(url: &str) -> Result<redis::Connection, redis::RedisError> {
+    let client = redis::Client::open(url)?;
     client.get_connection()
 }
 
@@ -193,8 +192,8 @@ fn extract_records(messages: Vec<LogMessagePack>) -> Vec<LogRecord> {
         .collect()
 }
 
-pub async fn producer_loop(tx: mpsc::UnboundedSender<LogRecord>) {
-    let mut redis_conn = redis_conn().expect("Could not connect to Redis!");
+pub async fn producer_loop(tx: mpsc::UnboundedSender<LogRecord>, config: RedisConfig) {
+    let mut redis_conn = redis_conn(&config.url.full_url()).expect("Could not connect to Redis!");
     let stream_read_id: String = ">".into();
 
     let _: Result<(), redis::RedisError> =
