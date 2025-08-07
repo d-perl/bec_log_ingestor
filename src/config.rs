@@ -65,6 +65,7 @@ impl IngestorConfig {
     }
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -107,5 +108,59 @@ port = 9876
         assert_eq!(config.redis.url.full_url(), "http://127.0.0.1:12345");
         assert_eq!(config.elastic.url.full_url(), "http://127.0.0.1:9876");
         assert_eq!(config.elastic.api_key, "abcdefgh==");
+    }
+
+    #[test]
+    fn test_redis_defaults() {
+        let test_str = "
+[url]
+url = \"http://localhost\"
+port = 6379
+";
+        let redis: RedisConfig = toml::from_str(&test_str).unwrap();
+        assert_eq!(redis.chunk_size, 100);
+        assert_eq!(redis.blocktime_millis, 1000);
+        assert_eq!(redis.consumer_group, "log-ingestor");
+        assert_eq!(redis.consumer_id, "log-ingestor");
+    }
+
+    #[test]
+    fn test_elastic_defaults() {
+        let test_str = "
+url = { url = \"http://localhost\", port = 9200 }
+api_key = \"testkey\"
+";
+        let elastic: ElasticConfig = toml::from_str(&test_str).unwrap();
+        assert_eq!(elastic.chunk_size, 100);
+        assert_eq!(elastic.api_key, "testkey");
+        assert_eq!(elastic.url.full_url(), "http://localhost:9200");
+    }
+
+    #[test]
+    fn test_invalid_urlport_missing_field() {
+        let test_str = "
+url = \"http://localhost\"
+";
+        let result: Result<UrlPort, _> = toml::from_str(&test_str);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_invalid_toml() {
+        let test_str = "
+this is not toml
+";
+        let result: Result<RedisConfig, _> = toml::from_str(&test_str);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_from_file_error() {
+        use std::path::PathBuf;
+        let path = PathBuf::from("/nonexistent/config.toml");
+        let result = std::panic::catch_unwind(|| {
+            IngestorConfig::from_file(path);
+        });
+        assert!(result.is_err());
     }
 }

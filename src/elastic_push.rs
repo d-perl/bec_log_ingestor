@@ -60,4 +60,96 @@ pub async fn consumer_loop(rx: &mut mpsc::UnboundedReceiver<LogRecord>, config: 
     println!("Producer dropped, consumer exiting");
 }
 
-mod tests {}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+    struct DummyLog {
+        msg: String,
+        level: String,
+    }
+
+    // Implement LogRecord for test if not already present
+    impl From<DummyLog> for LogRecord {
+        fn from(d: DummyLog) -> Self {
+            // Adjust this conversion as per your actual LogRecord struct
+            LogRecord {
+                elapsed: crate::redis_logs::Elapsed {
+                    repr: "".into(),
+                    seconds: 0.0,
+                },
+                exception: None,
+                extra: {}.into(),
+                file: crate::redis_logs::File {
+                    name: "".into(),
+                    path: "".into(),
+                },
+                function: "".into(),
+                level: crate::redis_logs::LogLevel {
+                    icon: "".into(),
+                    name: d.level,
+                    no: 100,
+                },
+                line: 0,
+                message: d.msg,
+                module: "".into(),
+                name: "".into(),
+                process: crate::redis_logs::NameId {
+                    name: "".into(),
+                    id: 0,
+                },
+                thread: crate::redis_logs::NameId {
+                    name: "".into(),
+                    id: 0,
+                },
+                time: crate::redis_logs::Timestamp {
+                    repr: "".into(),
+                    timestamp: 0.0,
+                },
+            }
+        }
+    }
+
+    #[test]
+    fn test_make_docs_values_empty() {
+        let records: Vec<LogRecord> = vec![];
+        let docs = make_docs_values(&records).unwrap();
+        assert!(docs.is_empty());
+    }
+
+    #[test]
+    fn test_make_docs_values_single() {
+        let record: LogRecord = DummyLog {
+            msg: "hello".to_string(),
+            level: "info".to_string(),
+        }
+        .into();
+        let docs = make_docs_values(&vec![record.clone()]).unwrap();
+        // Each record should produce two JSON bodies (action + doc)
+        assert_eq!(docs.len(), 2);
+    }
+
+    #[test]
+    fn test_make_docs_values_multiple() {
+        let record1: LogRecord = DummyLog {
+            msg: "a".to_string(),
+            level: "info".to_string(),
+        }
+        .into();
+        let record2: LogRecord = DummyLog {
+            msg: "b".to_string(),
+            level: "warn".to_string(),
+        }
+        .into();
+        let docs = make_docs_values(&vec![record1, record2]).unwrap();
+        assert_eq!(docs.len(), 4);
+    }
+
+    #[test]
+    fn test_elastic_client_invalid_url() {
+        let result = elastic_client("not a url", "apikey");
+        assert!(result.is_err());
+    }
+}
