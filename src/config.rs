@@ -47,13 +47,33 @@ pub struct RedisConfig {
 #[derive(Clone, Debug, Deserialize)]
 pub struct ElasticConfig {
     pub url: UrlPort,
-    pub api_key: String,
+    pub api_key: Option<String>,
+    pub username: Option<String>,
+    pub password: Option<String>,
     #[serde(default = "default_chunk_size")]
     pub chunk_size: u16,
     #[serde(default = "default_index")]
     pub index: String,
 }
 
+impl ElasticConfig {
+    pub fn credentials(&self) -> Result<elasticsearch::auth::Credentials, &str> {
+        if let Some(api_key) = &self.api_key {
+            Ok(elasticsearch::auth::Credentials::EncodedApiKey(
+                api_key.into(),
+            ))
+        } else if let Some(username) = &self.username
+            && let Some(password) = &self.password
+        {
+            Ok(elasticsearch::auth::Credentials::Basic(
+                username.to_owned(),
+                password.to_owned(),
+            ))
+        } else {
+            Err("No credentials in config!")
+        }
+    }
+}
 #[derive(Clone, Debug, Deserialize)]
 pub struct IngestorConfig {
     pub redis: RedisConfig,
@@ -113,7 +133,7 @@ port = 9876
         let config: IngestorConfig = toml::from_str(&test_str).unwrap();
         assert_eq!(config.redis.url.full_url(), "http://127.0.0.1:12345");
         assert_eq!(config.elastic.url.full_url(), "http://127.0.0.1:9876");
-        assert_eq!(config.elastic.api_key, "abcdefgh==");
+        assert_eq!(config.elastic.api_key, Some("abcdefgh==".into()));
     }
 
     #[test]
@@ -138,7 +158,7 @@ api_key = \"testkey\"
 ";
         let elastic: ElasticConfig = toml::from_str(&test_str).unwrap();
         assert_eq!(elastic.chunk_size, 100);
-        assert_eq!(elastic.api_key, "testkey");
+        assert_eq!(elastic.api_key, Some("testkey".into()));
         assert_eq!(elastic.url.full_url(), "http://localhost:9200");
     }
 

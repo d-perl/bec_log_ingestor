@@ -1,14 +1,14 @@
 use elasticsearch::{Elasticsearch, http::request::JsonBody};
 use tokio::sync::mpsc;
 
-use std::iter::once;
+use std::{error::Error, iter::once};
 
 use crate::{config::ElasticConfig, redis_logs::LogRecord};
 
-fn elastic_client(url: &str, api_key: &str) -> Result<Elasticsearch, elasticsearch::Error> {
-    let url = elasticsearch::http::Url::parse(url)?;
+fn elastic_client(config: &ElasticConfig) -> Result<Elasticsearch, Box<dyn Error>> {
+    let url = elasticsearch::http::Url::parse(&config.url.full_url())?;
     let conn_pool = elasticsearch::http::transport::SingleNodeConnectionPool::new(url);
-    let credentials = elasticsearch::auth::Credentials::EncodedApiKey(api_key.into());
+    let credentials = config.credentials()?;
     let transport = elasticsearch::http::transport::TransportBuilder::new(conn_pool)
         .auth(credentials)
         .build()?;
@@ -41,8 +41,7 @@ fn make_json_body(
 }
 
 pub async fn consumer_loop(rx: &mut mpsc::UnboundedReceiver<LogRecord>, config: ElasticConfig) {
-    let elastic_client = elastic_client(&config.url.full_url(), &config.api_key)
-        .expect("Failed to connect to Elastic!");
+    let elastic_client = elastic_client(&config).expect("Failed to connect to Elastic!");
 
     let mut buffer: Vec<LogRecord> = Vec::with_capacity(config.chunk_size.into());
 
@@ -69,6 +68,8 @@ pub async fn consumer_loop(rx: &mut mpsc::UnboundedReceiver<LogRecord>, config: 
 
 #[cfg(test)]
 mod tests {
+    use crate::config::UrlPort;
+
     use super::*;
     use serde::{Deserialize, Serialize};
 
@@ -156,7 +157,17 @@ mod tests {
 
     #[test]
     fn test_elastic_client_invalid_url() {
-        let result = elastic_client("not a url", "apikey");
+        let result = elastic_client(&ElasticConfig {
+            url: UrlPort {
+                url: "not an url".into(),
+                port: 9876,
+            },
+            api_key: Some("key".into()),
+            username: None,
+            password: None,
+            chunk_size: 8,
+            index: "".into(),
+        });
         assert!(result.is_err());
     }
 }
