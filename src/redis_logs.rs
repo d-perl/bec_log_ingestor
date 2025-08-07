@@ -1,4 +1,4 @@
-use redis::{Commands, RedisError};
+use redis::Commands;
 use rmp_serde;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
@@ -50,28 +50,28 @@ pub struct LogRecord {
     pub time: Timestamp,
 }
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Deserialize, Serialize, Clone)]
 struct LogMsg {
     record: LogRecord,
     service_name: String,
     text: String,
 }
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Deserialize, Serialize, Clone)]
 struct LogMessage {
     log_type: String,
     log_msg: LogMsg,
     metadata: serde_json::Value,
 }
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Deserialize, Serialize, Clone)]
 struct LogMessagePackInternal {
     encoder_name: String,
     type_name: String,
     data: LogMessage,
 }
 
-#[derive(Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Debug, PartialEq, Deserialize, Serialize, Clone)]
 struct LogMessagePack {
     #[serde(rename = "__bec_codec__")]
     bec_codec: LogMessagePackInternal,
@@ -148,6 +148,8 @@ fn stream_read_opts(config: &RedisConfig) -> redis::streams::StreamReadOptions {
         .group("log-ingestor", "log-ingestor")
 }
 
+/// Fetch unread logs for redis.
+/// Returns a tuple of the last ID read and a Vec of msgpacked entries from the log stream endpoint
 fn read_logs(
     redis_conn: &mut redis::Connection,
     last_id: &String,
@@ -231,7 +233,7 @@ pub async fn producer_loop(tx: mpsc::UnboundedSender<LogRecord>, config: RedisCo
     setup_consumer_group(&mut redis_conn, &config);
 
     'main: loop {
-        if let Ok((Some(id), packed)) = read_logs(&mut redis_conn, &stream_read_id, &config) {
+        if let Ok((Some(_), packed)) = read_logs(&mut redis_conn, &stream_read_id, &config) {
             let unpacked = process_data(packed).unwrap_or(vec![error_log_item()]);
             let records = extract_records(unpacked);
 
@@ -242,5 +244,65 @@ pub async fn producer_loop(tx: mpsc::UnboundedSender<LogRecord>, config: RedisCo
                 }
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_error_log_item_contents() {
+        let err_item = error_log_item();
+        assert_eq!(err_item.bec_codec.data.log_msg.record.level.name, "ERROR");
+        assert_eq!(
+            err_item.bec_codec.data.log_msg.record.message,
+            "Error processing log messages from Redis!"
+        );
+    }
+
+    #[test]
+    fn test_extract_records() {
+        let mut pack = error_log_item();
+        pack.bec_codec.data.log_msg.record.message = "test".to_string();
+        let records = extract_records(vec![pack.clone()]);
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].message, "test");
+    }
+
+    #[test]
+    fn test_process_data_valid() {
+        let pack = error_log_item();
+        let bytes = rmp_serde::to_vec(&pack).unwrap();
+        let redis_val = redis::Value::BulkString(bytes.into());
+        let result = process_data(vec![redis_val]);
+        assert!(result.is_ok());
+        let unpacked = result.unwrap();
+        assert_eq!(unpacked.len(), 1);
+        assert_eq!(
+            unpacked[0].bec_codec.data.log_msg.record.level.name,
+            "ERROR"
+        );
+    }
+
+    #[test]
+    fn test_process_data_invalid_type() {
+        let redis_val = redis::Value::Int(42);
+        let result = process_data(vec![redis_val]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_extract_records_empty() {
+        let records = extract_records(vec![]);
+        assert!(records.is_empty());
+    }
+
+    #[test]
+    fn test_logrecord_serde_roundtrip() {
+        let record = error_log_item().bec_codec.data.log_msg.record.clone();
+        let ser = serde_json::to_string(&record).unwrap();
+        let de: LogRecord = serde_json::from_str(&ser).unwrap();
+        assert_eq!(record, de);
     }
 }
