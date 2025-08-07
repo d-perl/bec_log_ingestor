@@ -17,8 +17,7 @@ jobs:
         run: |
           cargo +nightly tarpaulin --verbose --all-features --workspace --timeout 120 --out xml
 
-      - name: make coverage badge
-        uses: gaelgirodon/ci-badges-action@v1
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
         with:
-          gist-id: cd22d345696706dc24434c103b64ccea
-          token: ${{ secrets.COVERAGE_GIST_TOKEN }}
+          slug: d-perl/bec_log_ingestor
