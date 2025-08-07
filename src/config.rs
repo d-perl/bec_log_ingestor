@@ -26,6 +26,10 @@ fn default_blocktime_millis() -> usize {
 fn default_consumer() -> String {
     "log-ingestor".into()
 }
+/// Default value for the elastic index
+fn default_index() -> String {
+    "logstash-bec_test123".into()
+}
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct RedisConfig {
@@ -46,6 +50,8 @@ pub struct ElasticConfig {
     pub api_key: String,
     #[serde(default = "default_chunk_size")]
     pub chunk_size: u16,
+    #[serde(default = "default_index")]
+    pub index: String,
 }
 
 #[derive(Clone, Debug, Deserialize)]

@@ -11,6 +11,7 @@ port = 6379
 [elastic]
 api_key = "RjhrMWY1Z0J4ZjV0T0NJQmIzdjU6ZjVURGdmWmVCM3I3ckd2ZmFLUXl6UQ=="
 chunk_size = 100
+index = "logstash-bec_test123"
 
 [elastic.url]
 url = "http://localhost"

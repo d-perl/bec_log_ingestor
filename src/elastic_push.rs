@@ -53,7 +53,7 @@ pub async fn consumer_loop(rx: &mut mpsc::UnboundedReceiver<LogRecord>, config: 
         }
         let body = make_json_body(&buffer).unwrap_or(vec![]);
         let response = elastic_client
-            .bulk(elasticsearch::BulkParts::Index("test-index"))
+            .bulk(elasticsearch::BulkParts::Index(&config.index))
             .body(body)
             .send()
             .await;
