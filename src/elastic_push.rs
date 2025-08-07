@@ -11,6 +11,7 @@ fn elastic_client(config: &ElasticConfig) -> Result<Elasticsearch, Box<dyn Error
     let credentials = config.credentials()?;
     let transport = elasticsearch::http::transport::TransportBuilder::new(conn_pool)
         .auth(credentials)
+        .cert_validation(elasticsearch::cert::CertificateValidation::None)
         .build()?;
     Ok(Elasticsearch::new(transport))
 }
@@ -19,7 +20,7 @@ fn elastic_client(config: &ElasticConfig) -> Result<Elasticsearch, Box<dyn Error
 fn json_from_logrecord(record: &LogRecord) -> Result<serde_json::Value, serde_json::Error> {
     // Currently a naive implementation but could be:
     // serde_json::json!({"field_a": record.a, "field_b": record.b, etc...})
-    serde_json::to_value(record)
+    dbg!(serde_json::to_value(record))
 }
 
 fn make_json_body(
@@ -57,9 +58,10 @@ pub async fn consumer_loop(rx: &mut mpsc::UnboundedReceiver<LogRecord>, config: 
             .send()
             .await;
         println!(
-            "sent {} logs to elastic, response OK: {:?}",
+            "sent {} logs to elastic, response OK: {:?} \n {:?}",
             open,
-            response.is_ok()
+            response.is_ok(),
+            response
         );
         buffer = Vec::with_capacity(config.chunk_size.into());
     }
