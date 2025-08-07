@@ -15,14 +15,21 @@ fn elastic_client(url: &str, api_key: &str) -> Result<Elasticsearch, elasticsear
     Ok(Elasticsearch::new(transport))
 }
 
-fn make_docs_values(
+/// Convert a LogRecord to the document we want Elastic to ingest
+fn json_from_logrecord(record: &LogRecord) -> Result<serde_json::Value, serde_json::Error> {
+    // Currently a naive implementation but could be:
+    // serde_json::json!({"field_a": record.a, "field_b": record.b, etc...})
+    serde_json::to_value(record)
+}
+
+fn make_json_body(
     records: &Vec<LogRecord>,
 ) -> Result<Vec<JsonBody<serde_json::Value>>, serde_json::Error> {
     let action = serde_json::json!({ "create": {} });
 
     let values = records
         .iter()
-        .map(|e| serde_json::to_value(e))
+        .map(|e| json_from_logrecord(e))
         .collect::<Result<Vec<serde_json::Value>, serde_json::Error>>()?;
 
     Ok(values
@@ -44,7 +51,7 @@ pub async fn consumer_loop(rx: &mut mpsc::UnboundedReceiver<LogRecord>, config: 
         if open == 0 {
             break;
         }
-        let body = make_docs_values(&buffer).unwrap_or(vec![]);
+        let body = make_json_body(&buffer).unwrap_or(vec![]);
         let response = elastic_client
             .bulk(elasticsearch::BulkParts::Index("test-index"))
             .body(body)
@@ -115,7 +122,7 @@ mod tests {
     #[test]
     fn test_make_docs_values_empty() {
         let records: Vec<LogRecord> = vec![];
-        let docs = make_docs_values(&records).unwrap();
+        let docs = make_json_body(&records).unwrap();
         assert!(docs.is_empty());
     }
 
@@ -126,7 +133,7 @@ mod tests {
             level: "info".to_string(),
         }
         .into();
-        let docs = make_docs_values(&vec![record.clone()]).unwrap();
+        let docs = make_json_body(&vec![record.clone()]).unwrap();
         // Each record should produce two JSON bodies (action + doc)
         assert_eq!(docs.len(), 2);
     }
@@ -143,7 +150,7 @@ mod tests {
             level: "warn".to_string(),
         }
         .into();
-        let docs = make_docs_values(&vec![record1, record2]).unwrap();
+        let docs = make_json_body(&vec![record1, record2]).unwrap();
         assert_eq!(docs.len(), 4);
     }
 
