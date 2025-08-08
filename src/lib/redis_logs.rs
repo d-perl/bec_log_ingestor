@@ -1,11 +1,10 @@
+use crate::config::RedisConfig;
 use chrono::TimeZone;
 use redis::Commands;
 use rmp_serde;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use tokio::sync::mpsc;
-
-use crate::config::RedisConfig;
 
 #[derive(Debug, PartialEq, Deserialize, Serialize, Clone)]
 pub struct Elapsed {

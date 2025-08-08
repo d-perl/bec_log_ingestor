@@ -3,7 +3,18 @@ name = "bec_log_ingestor"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+name = "bec_log_ingestor"
+path = "src/lib/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "bec_log_ingestor"
+path = "src/bin/app.rs"
+
+
 [dependencies]
+pyo3 = { git = "https://github.com/pyo3/pyo3", features = ["extension-module"] }
 chrono = "0.4.41"
 clap = { version = "4.5.42", features = ["derive"] }
 elasticsearch = "9.0.0-alpha.1"

@@ -1,17 +1,6 @@
-use std::process::exit;
-
-use tokio::sync::mpsc;
-
-mod redis_logs;
-use crate::redis_logs::{LogMsg, producer_loop};
-
-mod elastic_push;
-use crate::elastic_push::consumer_loop;
-
-mod config;
-use crate::config::IngestorConfig;
-
+use bec_log_ingestor::{config::IngestorConfig, main_loop};
 use clap::Parser;
+use std::process::exit;
 
 #[derive(clap::Parser, Debug)]
 struct Args {
@@ -35,16 +24,6 @@ fn config_path() -> std::path::PathBuf {
 fn entry() -> IngestorConfig {
     let path = config_path();
     IngestorConfig::from_file(path)
-}
-
-async fn main_loop(config: IngestorConfig) {
-    println!("Starting log ingestor with config: \n {:?}", &config);
-
-    let (tx, mut rx) = mpsc::unbounded_channel::<LogMsg>();
-    let producer = tokio::spawn(producer_loop(tx, config.redis.clone()));
-    consumer_loop(&mut rx, config.elastic.clone()).await;
-
-    let _ = tokio::join!(producer);
 }
 
 #[tokio::main]
