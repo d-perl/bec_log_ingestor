@@ -5,7 +5,13 @@ edition = "2024"
 
 [lib]
 name = "bec_log_ingestor"
-crate-type = ["cdylib"]
+path = "src/lib/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[[bin]]
+name = "bec_log_ingestor"
+path = "src/bin/app.rs"
+
 
 [dependencies]
 pyo3 = { git = "https://github.com/pyo3/pyo3", features = ["extension-module"] }
