@@ -82,7 +82,10 @@ pub struct IngestorConfig {
 
 impl IngestorConfig {
     /// Parse a toml file for an IngestorConfig. Assumes the file exists and is readable.
-    pub fn from_file(path: std::path::PathBuf) -> Self {
+    pub fn from_file<P>(path: P) -> Self
+    where
+        P: AsRef<std::path::Path>,
+    {
         let mut file = std::fs::File::open(path).expect("Cannot open supplied config file!");
         let mut contents = String::new();
         file.read_to_string(&mut contents)
