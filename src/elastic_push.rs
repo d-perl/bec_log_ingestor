@@ -3,7 +3,10 @@ use tokio::sync::mpsc;
 
 use std::{error::Error, iter::once};
 
-use crate::{config::ElasticConfig, redis_logs::LogRecord};
+use crate::{
+    config::ElasticConfig,
+    redis_logs::{LogMsg, LogRecord},
+};
 
 fn elastic_client(config: &ElasticConfig) -> Result<Elasticsearch, Box<dyn Error>> {
     let url = elasticsearch::http::Url::parse(&config.url.full_url())?;
@@ -17,25 +20,30 @@ fn elastic_client(config: &ElasticConfig) -> Result<Elasticsearch, Box<dyn Error
 }
 
 /// Convert a LogRecord to the document we want Elastic to ingest
-fn json_from_logrecord(record: &LogRecord) -> Result<serde_json::Value, serde_json::Error> {
+fn json_from_logmsg(msg: &LogMsg) -> Result<serde_json::Value, serde_json::Error> {
     // dbg!(serde_json::to_value(record))
     dbg!(Ok(serde_json::json!({
-        "@timestamp": record.time.as_rfc3339(),
-        "file": record.file,
-        "function": record.function,
-        "message": record.message,
-        "log_type": record.level.name
+        "@timestamp": msg.record.time.as_rfc3339(),
+        "file": msg.record.file,
+        "function": msg.record.function,
+        "message": msg.record.message,
+        "log_type": msg.record.level.name,
+        "line": msg.record.line,
+        "module": msg.record.module,
+        "service_name": msg.service_name,
+        "proc_id": msg.record.process.id,
+        "exception": msg.record.exception,
     })))
 }
 
 fn make_json_body(
-    records: &Vec<LogRecord>,
+    msgs: &Vec<LogMsg>,
 ) -> Result<Vec<JsonBody<serde_json::Value>>, serde_json::Error> {
     let action = serde_json::json!({ "create": {} });
 
-    let values = records
+    let values = msgs
         .iter()
-        .map(|e| json_from_logrecord(e))
+        .map(|e| json_from_logmsg(e))
         .collect::<Result<Vec<serde_json::Value>, serde_json::Error>>()?;
 
     Ok(values
@@ -46,10 +54,10 @@ fn make_json_body(
         .collect())
 }
 
-pub async fn consumer_loop(rx: &mut mpsc::UnboundedReceiver<LogRecord>, config: ElasticConfig) {
+pub async fn consumer_loop(rx: &mut mpsc::UnboundedReceiver<LogMsg>, config: ElasticConfig) {
     let elastic_client = elastic_client(&config).expect("Failed to connect to Elastic!");
 
-    let mut buffer: Vec<LogRecord> = Vec::with_capacity(config.chunk_size.into());
+    let mut buffer: Vec<LogMsg> = Vec::with_capacity(config.chunk_size.into());
 
     loop {
         let open = rx.recv_many(&mut buffer, config.chunk_size.into()).await;
@@ -87,41 +95,45 @@ mod tests {
     }
 
     // Implement LogRecord for test if not already present
-    impl From<DummyLog> for LogRecord {
+    impl From<DummyLog> for LogMsg {
         fn from(d: DummyLog) -> Self {
             // Adjust this conversion as per your actual LogRecord struct
-            LogRecord {
-                elapsed: crate::redis_logs::Elapsed {
-                    repr: "".into(),
-                    seconds: 0.0,
-                },
-                exception: None,
-                extra: {}.into(),
-                file: crate::redis_logs::File {
+            LogMsg {
+                service_name: "test_service".into(),
+                text: "...".into(),
+                record: LogRecord {
+                    elapsed: crate::redis_logs::Elapsed {
+                        repr: "".into(),
+                        seconds: 0.0,
+                    },
+                    exception: None,
+                    extra: {}.into(),
+                    file: crate::redis_logs::File {
+                        name: "".into(),
+                        path: "".into(),
+                    },
+                    function: "".into(),
+                    level: crate::redis_logs::LogLevel {
+                        icon: "".into(),
+                        name: d.level,
+                        no: 100,
+                    },
+                    line: 0,
+                    message: d.msg,
+                    module: "".into(),
                     name: "".into(),
-                    path: "".into(),
-                },
-                function: "".into(),
-                level: crate::redis_logs::LogLevel {
-                    icon: "".into(),
-                    name: d.level,
-                    no: 100,
-                },
-                line: 0,
-                message: d.msg,
-                module: "".into(),
-                name: "".into(),
-                process: crate::redis_logs::NameId {
-                    name: "".into(),
-                    id: 0,
-                },
-                thread: crate::redis_logs::NameId {
-                    name: "".into(),
-                    id: 0,
-                },
-                time: crate::redis_logs::Timestamp {
-                    repr: "".into(),
-                    timestamp: 0.0,
+                    process: crate::redis_logs::NameId {
+                        name: "".into(),
+                        id: 0,
+                    },
+                    thread: crate::redis_logs::NameId {
+                        name: "".into(),
+                        id: 0,
+                    },
+                    time: crate::redis_logs::Timestamp {
+                        repr: "".into(),
+                        timestamp: 0.0,
+                    },
                 },
             }
         }
@@ -129,14 +141,14 @@ mod tests {
 
     #[test]
     fn test_make_docs_values_empty() {
-        let records: Vec<LogRecord> = vec![];
+        let records: Vec<LogMsg> = vec![];
         let docs = make_json_body(&records).unwrap();
         assert!(docs.is_empty());
     }
 
     #[test]
     fn test_make_docs_values_single() {
-        let record: LogRecord = DummyLog {
+        let record: LogMsg = DummyLog {
             msg: "hello".to_string(),
             level: "info".to_string(),
         }
@@ -148,12 +160,12 @@ mod tests {
 
     #[test]
     fn test_make_docs_values_multiple() {
-        let record1: LogRecord = DummyLog {
+        let record1: LogMsg = DummyLog {
             msg: "a".to_string(),
             level: "info".to_string(),
         }
         .into();
-        let record2: LogRecord = DummyLog {
+        let record2: LogMsg = DummyLog {
             msg: "b".to_string(),
             level: "warn".to_string(),
         }

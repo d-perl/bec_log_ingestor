@@ -3,7 +3,7 @@ use std::process::exit;
 use tokio::sync::mpsc;
 
 mod redis_logs;
-use crate::redis_logs::{LogRecord, producer_loop};
+use crate::redis_logs::{LogMsg, producer_loop};
 
 mod elastic_push;
 use crate::elastic_push::consumer_loop;
@@ -42,7 +42,7 @@ async fn main() {
     let config = entry();
     println!("Starting log ingestor with config: \n {:?}", &config);
 
-    let (tx, mut rx) = mpsc::unbounded_channel::<LogRecord>();
+    let (tx, mut rx) = mpsc::unbounded_channel::<LogMsg>();
     let producer = tokio::spawn(producer_loop(tx, config.redis.clone()));
     consumer_loop(&mut rx, config.elastic.clone()).await;
 

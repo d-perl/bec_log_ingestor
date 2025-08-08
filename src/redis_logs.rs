@@ -59,10 +59,10 @@ pub struct LogRecord {
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize, Clone)]
-struct LogMsg {
-    record: LogRecord,
-    service_name: String,
-    text: String,
+pub struct LogMsg {
+    pub record: LogRecord,
+    pub service_name: String,
+    pub text: String,
 }
 
 #[derive(Debug, PartialEq, Deserialize, Serialize, Clone)]
@@ -196,10 +196,10 @@ fn process_data(values: Vec<redis::Value>) -> Result<Vec<LogMessagePack>, Box<dy
         .collect::<Result<Vec<LogMessagePack>, rmp_serde::decode::Error>>()?)
 }
 
-fn extract_records(messages: Vec<LogMessagePack>) -> Vec<LogRecord> {
+fn extract_records(messages: Vec<LogMessagePack>) -> Vec<LogMsg> {
     messages
         .iter()
-        .map(|e| e.bec_codec.data.log_msg.record.clone())
+        .map(|e| e.bec_codec.data.log_msg.clone())
         .collect()
 }
 
@@ -235,7 +235,7 @@ fn setup_consumer_group(conn: &mut redis::Connection, config: &RedisConfig) {
     ));
 }
 
-pub async fn producer_loop(tx: mpsc::UnboundedSender<LogRecord>, config: RedisConfig) {
+pub async fn producer_loop(tx: mpsc::UnboundedSender<LogMsg>, config: RedisConfig) {
     let mut redis_conn = redis_conn(&config.url.full_url()).expect("Could not connect to Redis!");
     let stream_read_id: String = ">".into();
     setup_consumer_group(&mut redis_conn, &config);
@@ -275,7 +275,7 @@ mod tests {
         pack.bec_codec.data.log_msg.record.message = "test".to_string();
         let records = extract_records(vec![pack.clone()]);
         assert_eq!(records.len(), 1);
-        assert_eq!(records[0].message, "test");
+        assert_eq!(records[0].record.message, "test");
     }
 
     #[test]
