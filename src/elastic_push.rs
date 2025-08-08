@@ -18,9 +18,14 @@ fn elastic_client(config: &ElasticConfig) -> Result<Elasticsearch, Box<dyn Error
 
 /// Convert a LogRecord to the document we want Elastic to ingest
 fn json_from_logrecord(record: &LogRecord) -> Result<serde_json::Value, serde_json::Error> {
-    // Currently a naive implementation but could be:
-    // serde_json::json!({"field_a": record.a, "field_b": record.b, etc...})
-    dbg!(serde_json::to_value(record))
+    // dbg!(serde_json::to_value(record))
+    dbg!(Ok(serde_json::json!({
+        "@timestamp": record.time.as_rfc3339(),
+        "file": record.file,
+        "function": record.function,
+        "message": record.message,
+        "log_type": record.level.name
+    })))
 }
 
 fn make_json_body(

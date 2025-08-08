@@ -1,3 +1,4 @@
+use chrono::TimeZone;
 use redis::Commands;
 use rmp_serde;
 use serde::{Deserialize, Serialize};
@@ -32,6 +33,13 @@ pub struct NameId {
 pub struct Timestamp {
     pub repr: String,
     pub timestamp: f64,
+}
+
+impl Timestamp {
+    pub fn as_rfc3339(&self) -> String {
+        let ts = chrono::Utc.timestamp_opt(self.timestamp as i64, 0).unwrap();
+        ts.to_rfc3339()
+    }
 }
 #[derive(Debug, PartialEq, Deserialize, Serialize, Clone)]
 pub struct LogRecord {
