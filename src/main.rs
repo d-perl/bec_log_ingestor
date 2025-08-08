@@ -37,9 +37,7 @@ fn entry() -> IngestorConfig {
     IngestorConfig::from_file(path)
 }
 
-#[tokio::main]
-async fn main() {
-    let config = entry();
+async fn main_loop(config: IngestorConfig) {
     println!("Starting log ingestor with config: \n {:?}", &config);
 
     let (tx, mut rx) = mpsc::unbounded_channel::<LogMsg>();
@@ -47,4 +45,10 @@ async fn main() {
     consumer_loop(&mut rx, config.elastic.clone()).await;
 
     let _ = tokio::join!(producer);
+}
+
+#[tokio::main]
+async fn main() {
+    let config = entry();
+    main_loop(config).await
 }
